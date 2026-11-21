@@ -1,0 +1,112 @@
+{
+  "Comment": "Procesamiento de pedidos con Step Functions",
+  "StartAt": "ValidateOrder",
+  "States": {
+    "ValidateOrder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:654654478122:function:validate-order-luis-carlos",
+        "Payload.$": "$"
+      },
+      "Next": "ValidationChoice"
+    },
+    "ValidationChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.validationStatus",
+          "StringEquals": "VALID",
+          "Next": "CheckInventory"
+        }
+      ],
+      "Default": "InvalidOrderFail"
+    },
+    "CheckInventory": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:654654478122:function:check-inventory-luis-carlos",
+        "Payload.$": "$"
+      },
+      "Next": "InventoryChoice"
+    },
+    "InventoryChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.inventoryStatus",
+          "StringEquals": "AVAILABLE",
+          "Next": "ProcessPayment"
+        }
+      ],
+      "Default": "OutOfStockFail"
+    },
+    "ProcessPayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:654654478122:function:process-payment-luis-carlos",
+        "Payload.$": "$"
+      },
+      "Next": "PaymentChoice"
+    },
+    "PaymentChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.paymentStatus",
+          "StringEquals": "APPROVED",
+          "Next": "WaitForConfirmation"
+        }
+      ],
+      "Default": "PaymentRejectedFail"
+    },
+    "WaitForConfirmation": {
+      "Type": "Wait",
+      "Seconds": 5,
+      "Next": "ConfirmOrder"
+    },
+    "ConfirmOrder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:654654478122:function:confirm-order-luis-carlos",
+        "Payload.$": "$"
+      },
+      "Next": "RegisterAudit"
+    },
+    "RegisterAudit": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:654654478122:function:register-audit-luis-carlos",
+        "Payload.$": "$"
+      },
+      "Next": "SuccessState"
+    },
+    "SuccessState": {
+      "Type": "Succeed"
+    },
+    "InvalidOrderFail": {
+      "Type": "Fail",
+      "Error": "InvalidOrder",
+      "Cause": "El pedido no es válido"
+    },
+    "OutOfStockFail": {
+      "Type": "Fail",
+      "Error": "OutOfStock",
+      "Cause": "No hay inventario disponible"
+    },
+    "PaymentRejectedFail": {
+      "Type": "Fail",
+      "Error": "PaymentRejected",
+      "Cause": "El pago fue rechazado"
+    }
+  }
+}
